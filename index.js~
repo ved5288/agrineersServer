@@ -1,0 +1,405 @@
+var express = require('express')
+var app = express()
+
+var bodyParser = require('body-parser');
+
+
+app.use(bodyParser.json());
+
+var pg = require('pg');
+var connectionString = process.env.DATABASE_URL || 'postgres://postgres:a@localhost:5432/postgres';
+
+
+
+app.get('/', function (req, res) {
+
+	var pgClient = new pg.Client(connectionString);
+
+	pgClient.connect(function(err){
+		if(err){
+			throw err;
+		}
+	});
+
+	var query = pgClient.query("SELECT * from farmers");
+
+	query.on("row", function(row,result){
+		result.addRow(row);
+	});
+
+	query.on("err",function (err) {
+		console.log("The error is : ",err);
+	})
+
+	query.on("end",function(result){
+		console.log(result.rows);
+		pgClient.end();
+	});
+
+
+
+  
+	res.send('Hello World!')
+})
+
+
+
+
+app.post('/login', function (req, res) {
+	var mobile = req.body.phone;
+	var password = req.body.pass;
+
+	var data = null;
+
+	var pgClient = new pg.Client(connectionString);
+
+	pgClient.connect(function(err){
+		if(err){
+			throw err;
+		}
+	});
+
+
+	var query = pgClient.query("SELECT * from farmers where mobile='"+mobile+"'",function(err){
+		if(err) throw err;
+	});
+
+	query.on("row", function(row,result){	
+		result.addRow(row);
+	});
+
+	query.on("err",function (err) {
+		console.log("The error is : ",err);
+	})
+
+	query.on("end",function(result){
+
+		if(result.rows.length==0){
+			data = JSON.stringify({
+				status : 0
+			});
+			console.log("No user existing");
+		} else if(result.rows[0].password != password) {
+			data = JSON.stringify({
+				status : 1
+			});			
+			console.log("Wrong Password")
+		} else {
+			data = JSON.stringify({
+				status : 2,
+				details : result.rows[0]
+			});
+			console.log("Logged In");
+		}
+
+		pgClient.end();
+
+		res.send(data);
+
+	});
+})
+
+
+
+app.post('/farmercrop',function(req,res){
+
+	var farmerid = req.body.id;
+
+	console.log(req.body.crops);
+
+	var pgClient = new pg.Client(connectionString);
+
+	var queryString = "INSERT into farmercrops (farmerid,crop,acres) values";
+
+	var i=0;
+	for(i=0;i<req.body.crops.length;i++){
+		if(i!=0){
+			queryString = queryString+",";
+		}
+		queryString = queryString + " ('"+
+				farmerid			+"','"+
+				req.body.crops[i].cropname	+"','"+
+				req.body.crops[i].acres		+"')";
+	}
+
+	pgClient.connect();
+	
+	var query = pgClient.query(queryString);
+
+	query.on("err",function (err) {
+		console.log("The error is : ",err);
+	})
+
+	query.on("end",function(){
+		pgClient.end();
+		res.send("Successfully Inserted!");
+	});
+})
+
+app.post('/fertilizersupply',function(req,res){
+
+	var farmerid = req.body.id;
+
+	console.log(req.body.crops);
+
+	var pgClient = new pg.Client(connectionString);
+
+	var queryString = "INSERT into fertilizersupply (farmerid,fertilizer,quantity) values";
+
+	var i=0;
+	for(i=0;i<req.body.crops.length;i++){
+		if(i!=0){
+			queryString = queryString+",";
+		}
+		queryString = queryString + " ('"+
+				farmerid			+"','"+
+				req.body.crops[i].cropname	+"','"+
+				req.body.crops[i].quantity	+"')";
+	}
+
+	pgClient.connect();
+	
+	var query = pgClient.query(queryString);
+
+	query.on("err",function (err) {
+		console.log("The error is : ",err);
+	})
+
+	query.on("end",function(){
+		pgClient.end();
+		res.send("Successfully Inserted!");
+	});
+})
+
+
+app.post('/cropavailable',function(req,res){
+
+	var farmerid = req.body.id;
+
+	console.log(req.body.crops);
+
+	var pgClient = new pg.Client(connectionString);
+
+	var queryString = "INSERT into cropavailable (farmerid,crop,quantity) values";
+
+	var i=0;
+	for(i=0;i<req.body.crops.length;i++){
+		if(i!=0){
+			queryString = queryString+",";
+		}
+		queryString = queryString + " ('"+
+				farmerid			+"','"+
+				req.body.crops[i].cropname	+"','"+
+				req.body.crops[i].quantity	+"')";
+	}
+
+	pgClient.connect();
+	
+	var query = pgClient.query(queryString);
+
+	query.on("err",function (err) {
+		console.log("The error is : ",err);
+	})
+
+	query.on("end",function(){
+		pgClient.end();
+		res.send("Successfully Inserted!");
+	});
+})
+
+
+app.post('/requestfertilizers',function(req,res){
+
+	var farmerid = req.body.id;
+
+	console.log(req.body.nonorganic);
+	console.log(req.body.organic)
+
+	var pgClient = new pg.Client(connectionString);
+
+	var queryString = "INSERT into fertilizerdemand (farmerid,fertlizer,quantity,type) values";
+
+	var i=0;
+	for(i=0;i<req.body.organic.length;i++){
+		if(i!=0){
+			queryString = queryString+",";
+		}
+		queryString = queryString + " ('"+
+				farmerid			+"','"+
+				req.body.organic[i].ofertilizers	+"','"+
+				req.body.organic[i].num_ofert		+"','organic')";
+	}
+
+	for(i=0;i<req.body.nonorganic.length;i++){
+		if(i!=0||req.body.organic.length!=0){
+			queryString = queryString+",";
+		}
+		queryString = queryString + " ('"+
+				farmerid			+"','"+
+				req.body.nonorganic[i].nofertilizers	+"','"+
+				req.body.nonorganic[i].num_nofert		+"','nonorganic')";
+	}
+
+	pgClient.connect();
+	
+	var query = pgClient.query(queryString);
+
+	query.on("err",function (err) {
+		console.log("The error is : ",err);
+	})
+
+	query.on("end",function(){
+		pgClient.end();
+		res.send("Successfully Inserted!");
+	});
+})
+
+app.post('/fetchfertilizers',function(req,res){
+
+	console.log(req.body);
+
+	const results = [];
+
+	var pgClient = new pg.Client(connectionString);
+
+	var queryString = "SELECT * from aggrfertlizer";
+
+	console.log(queryString);
+
+
+	pgClient.connect();
+	
+	var query = pgClient.query(queryString);
+
+	query.on("err",function (err) {
+		console.log("The error is : ",err);
+	})
+
+	query.on("row",function(row){
+		results.push(row);
+	});
+
+	query.on("end",function(){
+
+		res.json(results);
+		pgClient.end();
+	});
+})
+
+app.post('/fetchfertilizerdemand',function(req,res){
+
+	console.log(req.body);
+
+	var fertName = req.body.names;
+
+	const results = [];
+
+	var pgClient = new pg.Client(connectionString);
+
+	var queryString = "SELECT farmerid, fertilizer, quantity from fertilizerdemand where fertilizer ='"+fertName+"'";
+
+	console.log(queryString);
+
+
+	pgClient.connect();
+	
+	var query = pgClient.query(queryString);
+
+	query.on("err",function (err) {
+		console.log("The error is : ",err);
+	})
+
+	query.on("row",function(row){
+		results.push(row);
+	});
+
+	query.on("end",function(){
+
+		res.json(results);
+		pgClient.end();
+	});
+})
+
+app.post('/fetchfertilizersupply',function(req,res){
+
+	console.log(req.body);
+
+	var fertName = req.body.names;
+
+	const results = [];
+
+	var pgClient = new pg.Client(connectionString);
+
+	var queryString = "SELECT farmerid, fertilizer, quantity from fertilizersupply where fertilizer ='"+fertName+"'";
+
+	console.log(queryString);
+
+
+	pgClient.connect();
+	
+	var query = pgClient.query(queryString);
+
+	query.on("err",function (err) {
+		console.log("The error is : ",err);
+	})
+
+	query.on("row",function(row){
+		results.push(row);
+	});
+
+	query.on("end",function(){
+
+		res.json(results);
+		pgClient.end();
+	});
+})
+
+
+app.post('/register',function(req,res){
+
+	console.log(req.body);
+
+
+
+	var farmername = "Vedant";
+	var village = "Sirpur-Kaghaznagar";
+	var mobile = "9876543211";
+	var interestGroup = "a";
+	var landsize = 123;
+	var bankaccount = "";
+	var sharecertificate = "abc";
+	var password = "cs14b053";
+
+
+
+	var queryString = "INSERT into farmers (name,village,mobile,interestgroup,landsize,bankaccount,sharecertificate,password) values ('"+
+						farmername		+"','"+
+						village			+"','"+
+						mobile			+"','"+
+						interestGroup	+"','"+
+						landsize		+"','"+
+						bankaccount		+"','"+
+						sharecertificate+"','"+
+						password+"')";
+
+	console.log(queryString);
+
+
+	pgClient.connect();
+	
+	var query = pgClient.query(queryString);
+
+	query.on("err",function (err) {
+		console.log("The error is : ",err);
+	})
+
+	query.on("end",function(){
+
+		res.send("Successfully Inserted!");
+		pgClient.end();
+	});
+})
+
+app.listen(3000, function () {
+  console.log('Example app listening on port 3000!')
+})
